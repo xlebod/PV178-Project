@@ -2,7 +2,6 @@ using Castle.Core.Internal;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using SettleDown.CRUDs;
 using SettleDown.Data;
 using SettleDown.DTOs;
@@ -228,17 +227,18 @@ namespace SettleDown.Controllers
                 return Problem("Entity set 'SettleDownContext.SettleDownDebt'  is null.");
             }
             
-            List<SettleDownMember> members = await _context.SettleDownMember
+            List<SettleDownMember> members = await _context.SettleDownMember!
                 .Where(m => m.GroupId == groupId)
                 .ToListAsync();
             foreach (SettleDownMember member in members)
             {
-                decimal totalDebt = await _context.SettleDownDebt
+                decimal totalDebt = _context.SettleDownDebt!.Local!
                     .Where(d => d.MemberId == member.Id)
                     .Select(d => d.Amount)
-                    .SumAsync();
+                    .Sum();
                 member.TotalBalance = -totalDebt;
             }
+
             return null;
         }
 

@@ -147,26 +147,52 @@ public class SettleDownDebtManagementService : ControllerBase, IDebtManagementSe
         if (_context.SettleDownDebt == null)
             return Problem("Entity set 'SettleDownContext.SettleDownDebt'  is null.");
         
-        if (await _context.SettleDownDebt.AnyAsync(d => d.GroupId == groupId && d.MemberId == debtDto.MemberId))
+        if (await _context.SettleDownDebt
+                .AnyAsync(d => d.GroupId == groupId && d.MemberId == debtDto.MemberId))
         {
-            SettleDownDebt existingDebt = (await _context.SettleDownDebt
-                .Where(d => d.GroupId == groupId && d.MemberId == debtDto.MemberId).ToListAsync())[0];
-            existingDebt.Amount += (decimal) debtDto.Amount;
-            if (!await _debtCrudService.UpdateWithoutSaving(existingDebt.Id.ToString(), existingDebt))
-            {
-                return Problem($"Encountered problem while updating debt Id: {existingDebt.Id}!");
-            }
-            return null;
+            return await UpdateExistingDebt(groupId, debtDto);
         }
         
+        if (_context.SettleDownDebt.Local.Any(d => d.GroupId == groupId && d.MemberId == debtDto.MemberId))
+        {
+            return await UpdateRecentlyAddedDebt(groupId, debtDto);
+        }
+
+        return await CreateNewDebt(groupId, debtDto);
+    }
+
+    private async Task<ActionResult?> CreateNewDebt(int? groupId, SettleDownDebtDto debtDto)
+    {
         var debt = new SettleDownDebt
         {
-            Amount = (decimal) debtDto.Amount,
+            Amount = (decimal) debtDto.Amount!,
             GroupId = groupId,
             MemberId = debtDto.MemberId
         };
-        
-        return await _debtCrudService.CreateWithoutSaving(debt) != null ?
-            null : Problem($"Encountered problem while creating debt for Member: {debtDto.MemberId}");
+
+        return await _debtCrudService.CreateWithoutSaving(debt) != null
+            ? null
+            : Problem($"Encountered problem while creating debt for Member: {debtDto.MemberId}");
+    }
+
+    private async Task<ActionResult?> UpdateRecentlyAddedDebt(int? groupId, SettleDownDebtDto debtDto)
+    {
+        SettleDownDebt existingDebt = _context.SettleDownDebt!.Local
+            .Single(d => d.GroupId == groupId && d.MemberId == debtDto.MemberId);
+        existingDebt.Amount += (decimal) debtDto.Amount!;
+        return null;
+    }
+
+    private async Task<ActionResult?> UpdateExistingDebt(int? groupId, SettleDownDebtDto debtDto)
+    {
+        SettleDownDebt? existingDebt = await _context.SettleDownDebt!
+            .SingleAsync(d => d.GroupId == groupId && d.MemberId == debtDto.MemberId);
+        existingDebt.Amount += (decimal) debtDto.Amount!;
+        if (!await _debtCrudService.UpdateWithoutSaving(existingDebt.Id.ToString(), existingDebt))
+        {
+            return Problem($"Encountered problem while updating debt Id: {existingDebt.Id}!");
+        }
+
+        return null;
     }
 }

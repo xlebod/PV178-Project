@@ -164,6 +164,17 @@ namespace SettleDown.Controllers
             SettleDownGroup settleDownGroup = InitializeGroupFromDto(dto);
             _context.SettleDownGroup.Add(settleDownGroup);
 
+            ActionResult? createDebtFromDto = CreateDebtFromDto(dto);
+            if (createDebtFromDto != null)
+            {
+                return createDebtFromDto;
+            }
+            ActionResult? createMembersFromDto = CreateMembersFromDto(dto);
+            if (createMembersFromDto != null)
+            {
+                return createMembersFromDto;
+            }
+
             SettleDownMember? memberFromCurrentUser = await InitializeMemberFromCurrentUserIfNotPresent(settleDownGroup);
             
             if (memberFromCurrentUser == null)
@@ -182,6 +193,34 @@ namespace SettleDown.Controllers
 
             await _context.SaveChangesAsync();
             return CreatedAtAction("GetSettleDownGroup", new {id = settleDownGroup.Id}, settleDownGroup);
+        }
+
+        private ActionResult? CreateMembersFromDto(SettleDownGroupDto dto)
+        {
+            if (_context.SettleDownMember == null)
+            {
+                return Problem("Entity set 'SettleDownContext.SettleDownDebt'  is null.");
+            }
+            foreach (SettleDownMember member in dto.Members)
+            {
+                _context.SettleDownMember.Add(member);
+            }
+
+            return null;
+        }
+
+        private ActionResult? CreateDebtFromDto(SettleDownGroupDto dto)
+        {
+            if (_context.SettleDownDebt == null)
+            {
+                return Problem("Entity set 'SettleDownContext.SettleDownDebt'  is null.");
+            }
+            foreach (SettleDownDebt debt in dto.Debts)
+            {
+                _context.SettleDownDebt.Add(debt);
+            }
+
+            return null;
         }
 
         private static SettleDownGroup InitializeGroupFromDto(SettleDownGroupDto dto)
